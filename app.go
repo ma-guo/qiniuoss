@@ -194,7 +194,7 @@ func (s *appState) sidebarSlot(cx *core.Scope, isNarrow func() bool) core.Node {
 							core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Right: core.Pt(0), Bottom: core.Pt(0),
 								Background: core.RGBA(0x000000, 0.4)}, OnPress: func(core.PressEvent) { s.showSidebar.Set(false) }},
 							core.View{Style: core.Style{Position: core.Absolute, Left: core.Pt(0), Top: core.Pt(0), Bottom: core.Pt(0), Width: core.Pt(260),
-								Background: colors.Background()}, Children: []core.Node{s.sidebar(cx)}},
+								Background: colors.Background(), PaddingEnv: core.EnvEdges{Top: core.EnvSafeArea, Bottom: core.EnvSafeArea}}, Children: []core.Node{s.sidebar(cx)}},
 						},
 					}
 				},
@@ -247,25 +247,36 @@ func (s *appState) statusBar(cx *core.Scope) core.Node {
 // debugPanel shows the API calls the app makes and their raw responses.
 func (s *appState) debugPanel(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
+	compact := cx.Env().Window().Width < 640
+	copyLog := func() {
+		var b strings.Builder
+		for _, e := range s.debugLog.Get() {
+			b.WriteString(e.Text)
+			b.WriteByte('\n')
+		}
+		s.sc.SetClipboard(b.String())
+		s.setStatus(s.t("调试日志已复制到剪贴板"))
+	}
+	buttons := []core.Node{
+		ui.Button{Text: s.t("复制"), Size: ui.SizeSmall, Variant: ui.ButtonGhost, OnPress: copyLog},
+		ui.Button{Text: s.t("清空"), Size: ui.SizeSmall, Variant: ui.ButtonGhost, OnPress: func() { s.clearDebug() }},
+	}
+	if compact {
+		buttons = []core.Node{
+			ui.IconButton{Icon: lucide.Copy, Label: s.t("复制"), OnPress: copyLog},
+			ui.IconButton{Icon: lucide.Eraser, Label: s.t("清空"), OnPress: func() { s.clearDebug() }},
+		}
+	}
+	header := append([]core.Node{
+		core.Text{Content: s.t("调试 / API 调用"), MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
+			Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, StyleFunc: ui.Colored(colors.Text)},
+	}, buttons...)
+	header = append(header, ui.IconButton{Icon: lucide.X, Label: s.t("关闭调试"), OnPress: func() { s.debugOn.Set(false) }})
 	return core.View{
 		Style: core.Style{Direction: core.Column, Height: core.Pt(220), BorderWidth: 1, Borders: core.Edges{Top: 1},
 			BorderColor: colors.Border(), Background: colors.Field()},
 		Children: []core.Node{
-			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Padding: core.Symmetric(4, 10)}, Children: []core.Node{
-				core.Text{Content: s.t("调试 / API 调用（切换目录时会记录请求与原始响应）"), Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Text)},
-				core.View{Style: core.Style{FlexGrow: 1}},
-				ui.Button{Text: s.t("复制"), Size: ui.SizeSmall, Variant: ui.ButtonGhost, OnPress: func() {
-					var b strings.Builder
-					for _, e := range s.debugLog.Get() {
-						b.WriteString(e.Text)
-						b.WriteByte('\n')
-					}
-					s.sc.SetClipboard(b.String())
-					s.setStatus(s.t("调试日志已复制到剪贴板"))
-				}},
-				ui.Button{Text: s.t("清空"), Size: ui.SizeSmall, Variant: ui.ButtonGhost, OnPress: func() { s.clearDebug() }},
-				ui.IconButton{Icon: lucide.X, Label: s.t("关闭调试"), OnPress: func() { s.debugOn.Set(false) }},
-			}},
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Padding: core.Symmetric(4, 10)}, Children: header},
 			core.Scroll{Style: core.Style{FlexGrow: 1, Padding: core.All(8)}, Children: []core.Node{core.Each(
 				func() []debugEntry { return s.debugLog.Get() },
 				func(e debugEntry) int { return e.Seq },

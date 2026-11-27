@@ -322,12 +322,13 @@ type appState struct {
 	showCopyMove *core.Signal[bool]
 	showPreview  *core.Signal[bool]
 	showDetails  *core.Signal[bool]
-	showDomains  *core.Signal[bool]
 	showS3       *core.Signal[bool]
 	showDelete   *core.Signal[bool]
+	showDownload *core.Signal[bool]
 
 	pendingDelete   []string
 	pendingTransfer []string
+	pendingDownload []string
 
 	editIdx *core.Signal[int]
 	accName *core.Signal[string]
@@ -348,9 +349,6 @@ type appState struct {
 	dirExpanded *core.Signal[map[string]bool]
 	dirBucket   string
 	dirSel      *ui.Selection
-
-	domainInput *core.Signal[string]
-	domainList  *core.Signal[[]string]
 
 	previewText    *core.Signal[string]
 	previewPath    *core.Signal[string]
@@ -399,9 +397,9 @@ func newState(cx *core.Scope) *appState {
 		showCopyMove:   core.NewSignal(cx, false),
 		showPreview:    core.NewSignal(cx, false),
 		showDetails:    core.NewSignal(cx, false),
-		showDomains:    core.NewSignal(cx, false),
 		showS3:         core.NewSignal(cx, false),
 		showDelete:     core.NewSignal(cx, false),
+		showDownload:   core.NewSignal(cx, false),
 		editIdx:        core.NewSignal(cx, -1),
 		accName:        core.NewSignal(cx, ""),
 		accAK:          core.NewSignal(cx, ""),
@@ -418,8 +416,6 @@ func newState(cx *core.Scope) *appState {
 		dirCache:       core.NewSignalFunc(cx, map[string][]string{}, nil),
 		dirExpanded:    core.NewSignalFunc(cx, map[string]bool{}, nil),
 		dirSel:         ui.NewSelection(cx, false),
-		domainInput:    core.NewSignal(cx, ""),
-		domainList:     core.NewSignalFunc(cx, []string(nil), nil),
 		previewText:    core.NewSignal(cx, ""),
 		previewPath:    core.NewSignal(cx, ""),
 		previewURL:     core.NewSignal(cx, ""),
@@ -829,6 +825,22 @@ func (s *appState) downloadObject(o object) {
 
 func (s *appState) downloadSelected() { s.downloadKeys(s.activeKeys()) }
 
+// requestDownload asks for confirmation before downloading the files among keys.
+func (s *appState) requestDownload(keys []string) {
+	var files []string
+	for _, key := range keys {
+		if !strings.HasSuffix(key, "/") {
+			files = append(files, key)
+		}
+	}
+	if len(files) == 0 {
+		s.errMsg.Set(s.t("请先选择要下载的文件"))
+		return
+	}
+	s.pendingDownload = files
+	s.showDownload.Set(true)
+}
+
 func (s *appState) downloadKeys(keys []string) {
 	var files []string
 	for _, key := range keys {
@@ -837,14 +849,14 @@ func (s *appState) downloadKeys(keys []string) {
 		}
 	}
 	if len(files) == 0 {
-		s.errMsg.Set("请先选择要下载的文件")
+		s.errMsg.Set(s.t("请先选择要下载的文件"))
 		return
 	}
 	if len(files) == 1 {
 		s.downloadObject(object{Key: files[0]})
 		return
 	}
-	s.sc.PickDirectories(core.PickDirectoriesOptions{Title: "选择下载保存的目录"}, func(dirs []core.Directory, err error) {
+	s.sc.PickDirectories(core.PickDirectoriesOptions{Title: s.t("选择下载保存的目录")}, func(dirs []core.Directory, err error) {
 		if err != nil {
 			s.errMsg.Set(err.Error())
 			return
@@ -1219,45 +1231,6 @@ func (s *appState) domainFor(bucket string) string {
 		return ""
 	}
 	return normalizeDomain(a.Domains[bucket])
-}
-
-func (s *appState) saveDomain(bucket, domain string) {
-	list := append([]account(nil), s.accounts.GetUntracked()...)
-	i := s.active.Get()
-	if i < 0 || i >= len(list) {
-		return
-	}
-	if list[i].Domains == nil {
-		list[i].Domains = map[string]string{}
-	}
-	domain = normalizeDomain(domain)
-	if domain == "" {
-		delete(list[i].Domains, bucket)
-	} else {
-		list[i].Domains[bucket] = domain
-	}
-	s.accounts.Set(list)
-	s.persist()
-}
-
-func (s *appState) fetchDomains(bucket string) {
-	c, _, ok := s.ensureClient()
-	if !ok {
-		return
-	}
-	s.domainList.Set(nil)
-	s.setStatus("正在获取绑定域名…")
-	go func() {
-		domains, err := c.domains(bucket)
-		s.sc.Post(func() {
-			if err != nil {
-				s.fail(err)
-				return
-			}
-			s.domainList.Set(domains)
-			s.setStatus(fmt.Sprintf("域名：%d 个", len(domains)))
-		})
-	}()
 }
 
 func (s *appState) runSearch() {

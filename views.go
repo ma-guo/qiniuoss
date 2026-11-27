@@ -15,9 +15,9 @@ const (
 	colCheck  = 22
 	colIcon   = 16
 	colGap    = 10
-	colSize   = 90
-	colType   = 150
-	colTime   = 150
+	colSize   = 76
+	colType   = 110
+	colTime   = 130
 	colMenu   = 30
 	listInset = 14
 )
@@ -58,15 +58,13 @@ func (s *appState) browseToolbar(cx *core.Scope) core.Node {
 	}, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 		Style: ui.TypeLabel.Merge(core.Style{MaxWidth: core.Pt(pathMax), FlexShrink: 1, MinWidth: core.Pt(0)}), StyleFunc: ui.Colored(colors.Text)}
 
-	var newBtn, upBtn, domBtn core.Node
+	var newBtn, upBtn core.Node
 	if compact {
 		newBtn = ui.IconButton{Icon: lucide.FolderPlus, Label: s.t("新建"), OnPress: func() { s.folderName.Set(""); s.showFolder.Set(true) }}
 		upBtn = ui.IconButton{Icon: lucide.Upload, Label: s.t("上传"), Tint: colors.Accent, OnPress: func() { s.beginUpload() }}
-		domBtn = ui.IconButton{Icon: lucide.Globe, Label: s.t("域名"), OnPress: func() { s.openDomains() }}
 	} else {
 		newBtn = ui.Button{Text: s.t("新建"), Icon: lucide.FolderPlus, Variant: ui.ButtonOutline, OnPress: func() { s.folderName.Set(""); s.showFolder.Set(true) }}
 		upBtn = ui.Button{Text: s.t("上传"), Icon: lucide.Upload, Variant: ui.ButtonPrimary, OnPress: func() { s.beginUpload() }}
-		domBtn = ui.Button{Text: s.t("域名"), Icon: lucide.Globe, Variant: ui.ButtonOutline, OnPress: func() { s.openDomains() }}
 	}
 	return core.View{
 		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Padding: core.Symmetric(8, 12),
@@ -90,7 +88,6 @@ func (s *appState) browseToolbar(cx *core.Scope) core.Node {
 				return ui.Button{TextFunc: func() string { return s.tf("上传列表 (%d)", s.activeUploads()) },
 					Icon: lucide.Upload, Variant: ui.ButtonOutline, OnPress: func() { s.uploadPanel.Set(true) }}
 			}, Else: func(*core.Scope) core.Node { return core.View{} }},
-			domBtn,
 		},
 	}
 }
@@ -117,14 +114,16 @@ func (s *appState) selectionBar(cx *core.Scope) core.Node {
 		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Wrap: core.Wrap, Padding: core.Symmetric(6, 12),
 			Background: ui.Alpha(colors.Accent(), 0.08), BorderWidth: 1, Borders: core.Edges{Bottom: 1}, BorderColor: colors.Border()},
 		Children: []core.Node{
-			s.selAction(compact, s.t("预览"), lucide.Search, ui.ButtonGhost, false, func() bool { return !single() }, func() {
+			s.selAction(compact, s.t("预览"), lucide.Eye, ui.ButtonGhost, false, func() bool { return !single() }, func() {
 				if keys := s.activeKeys(); len(keys) == 1 && !strings.HasSuffix(keys[0], "/") {
 					s.previewObject(object{Key: keys[0]})
 				}
 			}),
-			s.selAction(compact, s.t("下载"), lucide.Download, ui.ButtonGhost, false, none, func() { s.downloadSelected() }),
+			s.selAction(compact, s.t("下载"), lucide.Download, ui.ButtonGhost, false, none, func() {
+				s.requestDownload(s.activeKeys())
+			}),
 			s.selAction(compact, s.t("复制到"), lucide.Copy, ui.ButtonGhost, false, none, func() { s.showCopyMoveSelected(false) }),
-			s.selAction(compact, s.t("移动到"), lucide.Move, ui.ButtonGhost, false, none, func() { s.showCopyMoveSelected(true) }),
+			s.selAction(compact, s.t("移动到"), lucide.ArrowLeftRight, ui.ButtonGhost, false, none, func() { s.showCopyMoveSelected(true) }),
 			s.selAction(compact, s.t("复制链接"), lucide.Link, ui.ButtonGhost, false, func() bool { return !single() }, func() {
 				keys := s.activeKeys()
 				if len(keys) == 1 && !strings.HasSuffix(keys[0], "/") {
@@ -139,7 +138,7 @@ func (s *appState) selectionBar(cx *core.Scope) core.Node {
 					return s.tf("已勾选 %d 项", n)
 				}
 				if cur := s.cursor.Get(); cur != "" {
-					return s.tf("当前：%s", baseName(cur))
+					return baseName(cur)
 				}
 				return s.t("未选择任何项")
 			}, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
@@ -278,20 +277,20 @@ func (s *appState) fileRow(cx *core.Scope, o object) core.Node {
 			Trigger: ui.Button{Icon: lucide.Ellipsis, Variant: ui.ButtonGhost, Size: ui.SizeSmall, Label: s.t("更多操作")},
 			Children: []core.Node{
 				ui.MenuItem{Text: s.t("打开"), Icon: lucide.FolderOpen, OnSelect: func() { s.activate(o) }},
-				ui.MenuItem{Text: s.t("预览"), Icon: lucide.Search, OnSelect: func() { s.previewObject(o) }, Disabled: func() bool { return o.Dir }},
+				ui.MenuItem{Text: s.t("预览"), Icon: lucide.Eye, OnSelect: func() { s.previewObject(o) }, Disabled: func() bool { return o.Dir }},
 				ui.MenuItem{Text: s.t("详情"), Icon: lucide.Info, OnSelect: func() { s.showDetailsFor(o) }, Disabled: func() bool { return o.Dir }},
 				ui.MenuItem{Text: s.t("下载"), Icon: lucide.Download, OnSelect: func() { s.downloadObject(o) }, Disabled: func() bool { return o.Dir }},
 				ui.MenuItem{Text: s.t("复制链接"), Icon: lucide.Link, OnSelect: func() { s.copyLink(o) }, Disabled: func() bool { return o.Dir }},
 				ui.MenuItem{Text: s.t("在浏览器打开"), Icon: lucide.ExternalLink, OnSelect: func() { s.openInBrowser(o) }, Disabled: func() bool { return o.Dir }},
 				ui.MenuItem{Text: s.t("重命名"), Icon: lucide.Pencil, OnSelect: func() { s.showRenameFor(o) }},
 				ui.MenuItem{Text: s.t("复制到…"), Icon: lucide.Copy, OnSelect: func() { s.showCopyMoveFor(o, false) }},
-				ui.MenuItem{Text: s.t("移动到…"), Icon: lucide.Move, OnSelect: func() { s.showCopyMoveFor(o, true) }},
+				ui.MenuItem{Text: s.t("移动到…"), Icon: lucide.ArrowLeftRight, OnSelect: func() { s.showCopyMoveFor(o, true) }},
 				ui.MenuItem{Text: s.t("删除"), Icon: lucide.Trash, Variant: ui.MenuItemDanger, OnSelect: func() { s.requestDelete([]string{o.Key}) }},
 			},
 		}},
 	}
 	return core.View{
-		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: colGap, Width: core.Pct(100), BoxSizing: core.BorderBox, Padding: core.Symmetric(8, listInset), Cursor: core.CursorPointer},
+		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: colGap, Width: core.Pct(100), BoxSizing: core.BorderBox, Padding: core.Edges{Left: listInset, Right: listInset}, Cursor: core.CursorPointer},
 		StyleFunc: func() core.Style {
 			c := ui.ColorsOf(cx)
 			switch {
@@ -395,17 +394,6 @@ func (s *appState) clearVisibleSelection() {
 			s.setSelected(o.Key, false)
 		}
 	}
-}
-
-func (s *appState) openDomains() {
-	bucket := s.bucket.Get()
-	if bucket == "" {
-		s.errMsg.Set(s.t("请先选择存储空间"))
-		return
-	}
-	s.domainInput.Set(s.domainFor(bucket))
-	s.domainList.Set(nil)
-	s.showDomains.Set(true)
 }
 
 func fileIcon(kind string) func() *core.SVG {
@@ -573,14 +561,16 @@ func (s *appState) searchSelectionBar(cx *core.Scope) core.Node {
 					}
 				},
 			},
-			s.selAction(compact, s.t("预览"), lucide.Search, ui.ButtonGhost, false, func() bool { return !single() }, func() {
+			s.selAction(compact, s.t("预览"), lucide.Eye, ui.ButtonGhost, false, func() bool { return !single() }, func() {
 				if keys := q.activeKeys(); len(keys) == 1 {
 					s.previewObject(object{Key: keys[0]})
 				}
 			}),
-			s.selAction(compact, s.t("下载"), lucide.Download, ui.ButtonGhost, false, none, func() { s.downloadKeys(q.activeKeys()) }),
+			s.selAction(compact, s.t("下载"), lucide.Download, ui.ButtonGhost, false, none, func() {
+				s.requestDownload(q.activeKeys())
+			}),
 			s.selAction(compact, s.t("复制到"), lucide.Copy, ui.ButtonGhost, false, none, func() { s.showCopyMoveKeys(q.activeKeys(), false) }),
-			s.selAction(compact, s.t("移动到"), lucide.Move, ui.ButtonGhost, false, none, func() { s.showCopyMoveKeys(q.activeKeys(), true) }),
+			s.selAction(compact, s.t("移动到"), lucide.ArrowLeftRight, ui.ButtonGhost, false, none, func() { s.showCopyMoveKeys(q.activeKeys(), true) }),
 			s.selAction(compact, s.t("复制链接"), lucide.Link, ui.ButtonGhost, false, func() bool { return !single() }, func() {
 				if keys := q.activeKeys(); len(keys) == 1 {
 					s.copyLink(object{Key: keys[0]})
@@ -594,7 +584,7 @@ func (s *appState) searchSelectionBar(cx *core.Scope) core.Node {
 					return s.tf("已勾选 %d 项", n)
 				}
 				if cur := q.cursor.Get(); cur != "" {
-					return s.tf("当前：%s", cur)
+					return baseName(cur)
 				}
 				return s.t("未选择任何项")
 			}, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
@@ -644,6 +634,22 @@ func (s *appState) searchForm(cx *core.Scope) core.Node {
 		MaxHeight: 260,
 		Children:  typeItems,
 	}
+	fieldsRow := func(wrap bool) core.Node {
+		st := core.Style{Direction: core.Row, Gap: 10}
+		if wrap {
+			st.Wrap = core.Wrap
+		}
+		return core.View{Style: st, Children: []core.Node{
+			field(s.t("前缀 Prefix"), textInput(q.prefix, "images/2024/"), 110),
+			field(s.t("后缀 Suffixes"), textInput(q.suffixes, "png,jpg,gif"), 110),
+			field(s.t("MIME 类型"), textInput(q.mimes, "image/*,text/*"), 110),
+			field(s.t("存储类型"), typeMenu, 220),
+			field(s.t("最小大小"), textInput(q.minSize, "10K"), 120),
+			field(s.t("最大大小"), textInput(q.maxSize, "5M"), 120),
+			field(s.t("起始时间"), textInput(q.start, "2024-01-01 00:00:00"), 200),
+			field(s.t("结束时间"), textInput(q.end, "2024-12-31 23:59:59"), 200),
+		}}
+	}
 	return core.View{
 		Style: core.Style{Direction: core.Column, Gap: 10, Padding: core.All(14),
 			BorderWidth: 1, Borders: core.Edges{Bottom: 1}, BorderColor: colors.Border()},
@@ -658,15 +664,13 @@ func (s *appState) searchForm(cx *core.Scope) core.Node {
 					return lucide.ChevronUp()
 				}, Label: s.t("展开/折叠"), OnPress: func() { q.collapsed.Set(!q.collapsed.Get()) }},
 			}},
-			core.View{Style: core.Style{Direction: core.Row, Gap: 10, Wrap: core.Wrap}, Children: []core.Node{
-				field(s.t("前缀 Prefix"), textInput(q.prefix, "images/2024/"), 110),
-				field(s.t("后缀 Suffixes"), textInput(q.suffixes, "png,jpg,gif"), 110),
-				field(s.t("MIME 类型"), textInput(q.mimes, "image/*,text/*"), 110),
-				field(s.t("存储类型"), typeMenu, 220),
-				field(s.t("最小大小"), textInput(q.minSize, "10K"), 120),
-				field(s.t("最大大小"), textInput(q.maxSize, "5M"), 120),
-				field(s.t("起始时间"), textInput(q.start, "2024-01-01 00:00:00"), 200),
-				field(s.t("结束时间"), textInput(q.end, "2024-12-31 23:59:59"), 200),
+			core.Show{When: func() bool { return !q.collapsed.Get() }, Then: func(cx *core.Scope) core.Node {
+				return fieldsRow(true)
+			}, Else: func(cx *core.Scope) core.Node {
+				// Collapsed: one row of parameters, scrolled sideways on a
+				// narrow screen instead of stacking into several rows.
+				return core.Scroll{Horizontal: true, HideIndicator: true, Style: core.Style{Height: core.Pt(56), FlexShrink: 0},
+					Children: []core.Node{fieldsRow(false)}}
 			}},
 			core.Show{When: func() bool { return !q.collapsed.Get() }, Then: func(cx *core.Scope) core.Node {
 				return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 16, Wrap: core.Wrap}, Children: []core.Node{
@@ -734,7 +738,7 @@ func (s *appState) searchRow(row *core.Scope, o object) core.Node {
 	size := displaySize(o.Size, q.readable.Get())
 	kind := objectKind(o)
 	return core.View{
-		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: colGap, Width: core.Pct(100), BoxSizing: core.BorderBox, Padding: core.Symmetric(8, listInset), Cursor: core.CursorPointer},
+		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: colGap, Width: core.Pct(100), BoxSizing: core.BorderBox, Padding: core.Edges{Left: listInset, Right: listInset}, Cursor: core.CursorPointer},
 		StyleFunc: func() core.Style {
 			c := ui.ColorsOf(row)
 			switch {
@@ -757,8 +761,8 @@ func (s *appState) searchRow(row *core.Scope, o object) core.Node {
 			core.Text{Content: o.Key, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
 				Style: core.Style{Color: colors.Text(), FontSize: 13, FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}},
 			cellText(size, ui.TypeCaption, colSize, core.TextAlignEnd, colors.Text),
-			cellText(o.Mime, ui.TypeCaption, colType, 0, colors.Muted),
-			cellText(formatPutTime(o.PutTime), ui.TypeCaption, colTime, 0, colors.Muted),
+			colIf(func() bool { return showTypeCol(row) }, cellText(o.Mime, ui.TypeCaption, colType, 0, colors.Muted)),
+			colIf(func() bool { return showTimeCol(row) }, cellText(formatPutTime(o.PutTime), ui.TypeCaption, colTime, 0, colors.Muted)),
 		},
 	}
 }

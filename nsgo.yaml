@@ -1,6 +1,6 @@
 name: qiniuoss
 id: com.maguo.qiniuoss
-version: 1.0.1
+version: 1.0.2
 
 # 应用图标使用七牛 logo：macOS 用 assets/AppIcon.icns，其他平台用
 # assets/Icon.png（均为 1024 正方形）。

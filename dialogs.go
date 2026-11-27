@@ -17,8 +17,8 @@ func (s *appState) dialogs(cx *core.Scope) core.Node {
 		s.copyMoveDialog(cx),
 		s.previewDialog(cx),
 		s.detailsDialog(cx),
-		s.domainsDialog(cx),
 		s.deleteDialog(cx),
+		s.downloadDialog(cx),
 	}}
 }
 
@@ -39,6 +39,12 @@ func footer(cancel func(), cancelText string, primary core.Node) []core.Node {
 	return nodes
 }
 
+// dialogKeyboardStyle lifts a dialog above the software keyboard on touch
+// platforms, so its inputs and buttons stay visible while typing.
+func dialogKeyboardStyle() core.Style {
+	return core.Style{MarginEnv: core.EnvEdges{Bottom: core.EnvKeyboard}}
+}
+
 func (s *appState) accountsDialog(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	open, onChange := bind(s.showAccounts)
@@ -49,7 +55,8 @@ func (s *appState) accountsDialog(cx *core.Scope) core.Node {
 		}}
 	}
 	return ui.Dialog{
-		Open: open, OnOpenChange: onChange, Title: s.t("账户管理"), Description: s.t("配置七牛 AccessKey / SecretKey，密钥仅保存在本机。"),
+		Style: dialogKeyboardStyle(),
+		Open:  open, OnOpenChange: onChange, Title: s.t("账户管理"), Description: s.t("配置七牛 AccessKey / SecretKey，密钥仅保存在本机。"),
 		Children: []core.Node{
 			core.View{Style: core.Style{Direction: core.Column, Gap: 6}, Children: []core.Node{
 				core.Text{Content: s.t("已有账户"), Style: ui.TypeLabel, StyleFunc: ui.Colored(colors.Text)},
@@ -119,7 +126,8 @@ func (s *appState) simpleInputDialog(cx *core.Scope, openSig *core.Signal[bool],
 	colors := ui.ColorsOf(cx)
 	open, onChange := bind(openSig)
 	return ui.Dialog{
-		Open: open, OnOpenChange: onChange, Title: title,
+		Style: dialogKeyboardStyle(),
+		Open:  open, OnOpenChange: onChange, Title: title,
 		Children: []core.Node{
 			core.Text{Content: label, Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)},
 			ui.Input{Value: func() string { return value.Get() }, OnChange: func(v string) { value.Set(v) }, OnSubmit: func(string) { confirm() }, AutoFocus: true},
@@ -132,7 +140,8 @@ func (s *appState) renameDialog(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
 	open, onChange := bind(s.showRename)
 	return ui.Dialog{
-		Open: open, OnOpenChange: onChange, Title: s.t("重命名"),
+		Style: dialogKeyboardStyle(),
+		Open:  open, OnOpenChange: onChange, Title: s.t("重命名"),
 		DescriptionFunc: func() string { return s.target.Get().Key },
 		Children: []core.Node{
 			core.Text{Content: s.t("新名称"), Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)},
@@ -145,9 +154,18 @@ func (s *appState) renameDialog(cx *core.Scope) core.Node {
 
 func (s *appState) copyMoveDialog(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
+	compact := cx.Env().Window().Width < 640
+	treeH := core.Points(220)
+	if compact {
+		treeH = 140
+	}
 	open, onChange := bind(s.showCopyMove)
 	return ui.Dialog{
-		Open: open, OnOpenChange: onChange,
+		Style: dialogKeyboardStyle(),
+		Open:  open, OnOpenChange: onChange,
+		// Disable the touch sheet's swipe-to-dismiss so dragging inside the
+		// folder tree scrolls the tree instead of moving the sheet.
+		NoCloseOnBackdropPress: true,
 		TitleFunc: func() string {
 			if s.copyIsMove.Get() {
 				return s.t("移动到")
@@ -187,7 +205,7 @@ func (s *appState) copyMoveDialog(cx *core.Scope) core.Node {
 				EstimatedSize: 28,
 				ToggleLabel:   s.t("展开"),
 				Label:         s.t("目录树"),
-				Style:         core.Style{Height: core.Pt(220), BorderWidth: 1, BorderColor: colors.Border(), CornerRadius: ui.RadiusControl, MinWidth: core.Pt(0)},
+				Style:         core.Style{Height: core.Pt(treeH), FlexShrink: 0, BorderWidth: 1, BorderColor: colors.Border(), CornerRadius: ui.RadiusControl, MinWidth: core.Pt(0)},
 				Empty:         core.Text{Content: s.t("（没有子目录，可直接在下方输入前缀）"), Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)},
 				Row: func(row *core.Scope, item ui.TreeItem) core.Node {
 					key, _ := item.Key().(string)
@@ -223,7 +241,8 @@ func (s *appState) previewDialog(cx *core.Scope) core.Node {
 		}
 	}
 	return ui.Dialog{
-		Open: open, OnOpenChange: onChange, Title: s.t("预览"),
+		Style: dialogKeyboardStyle(),
+		Open:  open, OnOpenChange: onChange, Title: s.t("预览"),
 		DescriptionFunc: func() string { return s.target.Get().Key },
 		Children: []core.Node{
 			core.Show{When: func() bool { return s.previewErr.Get() != "" }, Then: func(cx *core.Scope) core.Node {
@@ -270,7 +289,6 @@ func (s *appState) previewDialog(cx *core.Scope) core.Node {
 		},
 		Footer: []core.Node{
 			ui.Button{Text: s.t("关闭"), Variant: ui.ButtonGhost, OnPress: func() { s.closePreview() }},
-			ui.Button{Text: s.t("域名设置"), Icon: lucide.Globe, Variant: ui.ButtonOutline, OnPress: func() { s.closePreview(); s.openDomains() }},
 			ui.Button{Text: s.t("在浏览器打开"), Icon: lucide.ExternalLink, Variant: ui.ButtonOutline, OnPress: func() {
 				if u := s.previewURL.Get(); u != "" {
 					s.sc.OpenURL(u, nil)
@@ -292,7 +310,8 @@ func (s *appState) detailsDialog(cx *core.Scope) core.Node {
 		}}
 	}
 	return ui.Dialog{
-		Open: open, OnOpenChange: onChange, Title: s.t("文件详情"),
+		Style: dialogKeyboardStyle(),
+		Open:  open, OnOpenChange: onChange, Title: s.t("文件详情"),
 		Children: []core.Node{core.View{Style: core.Style{Direction: core.Column, Gap: 8}, Children: []core.Node{
 			row("Key", s.target.Get().Key),
 			row("大小", fmt.Sprintf("%s (%d 字节)", humanSize(s.target.Get().Size), s.target.Get().Size)),
@@ -306,58 +325,37 @@ func (s *appState) detailsDialog(cx *core.Scope) core.Node {
 	}
 }
 
-func (s *appState) domainsDialog(cx *core.Scope) core.Node {
-	colors := ui.ColorsOf(cx)
-	open, onChange := bind(s.showDomains)
-	return ui.Dialog{
-		Open: open, OnOpenChange: onChange, Title: s.t("访问域名设置"),
-		DescriptionFunc: func() string { return "存储空间：" + s.bucket.Get() },
-		Children: []core.Node{
-			core.Text{Content: s.t("用于生成私有/公开文件的访问链接，例如 cdn.example.com。"), Style: ui.TypeCaption, StyleFunc: ui.Colored(colors.Muted)},
-			ui.Input{Value: func() string { return s.domainInput.Get() }, OnChange: func(v string) { s.domainInput.Set(v) }, Placeholder: "https://cdn.example.com"},
-			core.View{Style: core.Style{Direction: core.Row, Gap: 8}, Children: []core.Node{
-				ui.Button{Text: s.t("自动获取"), Icon: lucide.Download, Variant: ui.ButtonOutline, OnPress: func() { s.fetchDomains(s.bucket.Get()) }},
-				ui.Button{Text: s.t("保存"), Icon: lucide.Save, Variant: ui.ButtonPrimary, OnPress: func() {
-					s.saveDomain(s.bucket.Get(), s.domainInput.Get())
-					s.setStatus(s.t("域名已保存"))
-					s.showDomains.Set(false)
-				}},
-			}},
-			core.Show{When: func() bool { return len(s.domainList.Get()) > 0 }, Then: func(cx *core.Scope) core.Node {
-				return core.View{Style: core.Style{Direction: core.Column, Gap: 4}, Children: []core.Node{
-					core.Text{Content: s.t("该空间绑定的域名"), Style: ui.TypeCaption, StyleFunc: ui.Colored(ui.ColorsOf(cx).Muted)},
-					core.Each(
-						func() []string { return s.domainList.Get() },
-						func(d string) string { return d },
-						func(row *core.Scope, item func() string, _ func() int) core.Node {
-							return core.View{OnPress: func(core.PressEvent) { s.domainInput.Set(item()) },
-								Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Padding: core.Symmetric(4, 6),
-									CornerRadius: ui.RadiusControl, Cursor: core.CursorPointer},
-								StyleFunc: func() core.Style {
-									return core.Style{Hover: &core.Style{Background: ui.Alpha(ui.ColorsOf(row).Text(), 0.06)}}
-								},
-								Children: []core.Node{
-									ui.IconOf(lucide.Globe, 15, ui.ColorsOf(row).Muted),
-									core.Text{Content: item(), Style: ui.TypeBody},
-								}}
-						},
-					),
-				}}
-			}},
-		},
-		Footer: footer(func() { s.showDomains.Set(false) }, s.t("关闭"), nil),
-	}
-}
-
 func (s *appState) deleteDialog(cx *core.Scope) core.Node {
 	open, onChange := bind(s.showDelete)
 	return ui.Dialog{
-		Open: open, OnOpenChange: onChange, Title: s.t("确认删除"),
+		Style: dialogKeyboardStyle(),
+		Open:  open, OnOpenChange: onChange, Title: s.t("确认删除"),
 		DescriptionFunc: func() string {
-			return fmt.Sprintf("将删除 %d 项（目录会连同其中所有对象一并删除），此操作不可撤销。", len(s.pendingDelete))
+			return s.tf("将删除 %d 项（目录会连同其中所有对象一并删除），此操作不可撤销。", len(s.pendingDelete))
 		},
 		Role: core.RoleAlertDialog,
 		Footer: footer(func() { s.pendingDelete = nil; s.showDelete.Set(false) }, s.t("取消"),
-			ui.Button{Text: "删除", Icon: lucide.Trash, Variant: ui.ButtonDanger, OnPress: func() { s.confirmDelete() }}),
+			ui.Button{Text: s.t("删除"), Icon: lucide.Trash, Variant: ui.ButtonDanger, OnPress: func() { s.confirmDelete() }}),
+	}
+}
+
+func (s *appState) downloadDialog(cx *core.Scope) core.Node {
+	open, onChange := bind(s.showDownload)
+	return ui.Dialog{
+		Style: dialogKeyboardStyle(),
+		Open:  open, OnOpenChange: onChange, Title: s.t("确认下载"),
+		DescriptionFunc: func() string {
+			if len(s.pendingDownload) <= 1 {
+				return s.t("将下载该文件到本地。")
+			}
+			return s.tf("将下载 %d 个文件到本地。", len(s.pendingDownload))
+		},
+		Footer: footer(func() { s.pendingDownload = nil; s.showDownload.Set(false) }, s.t("取消"),
+			ui.Button{Text: s.t("下载"), Icon: lucide.Download, Variant: ui.ButtonPrimary, OnPress: func() {
+				keys := s.pendingDownload
+				s.pendingDownload = nil
+				s.showDownload.Set(false)
+				s.downloadKeys(keys)
+			}}),
 	}
 }
