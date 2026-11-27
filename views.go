@@ -648,7 +648,16 @@ func (s *appState) searchForm(cx *core.Scope) core.Node {
 		Style: core.Style{Direction: core.Column, Gap: 10, Padding: core.All(14),
 			BorderWidth: 1, Borders: core.Edges{Bottom: 1}, BorderColor: colors.Border()},
 		Children: []core.Node{
-			core.Text{Content: s.t("高级搜索（对齐 qshell listbucket2）"), Style: ui.TypeTitle, StyleFunc: ui.Colored(colors.Text)},
+			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8}, Children: []core.Node{
+				core.Text{Content: s.t("高级搜索（对齐 qshell listbucket2）"), Style: ui.TypeTitle, StyleFunc: ui.Colored(colors.Text)},
+				core.View{Style: core.Style{FlexGrow: 1}},
+				ui.IconButton{Icon: func() *core.SVG {
+					if q.collapsed.Get() {
+						return lucide.ChevronDown()
+					}
+					return lucide.ChevronUp()
+				}, Label: s.t("展开/折叠"), OnPress: func() { q.collapsed.Set(!q.collapsed.Get()) }},
+			}},
 			core.View{Style: core.Style{Direction: core.Row, Gap: 10, Wrap: core.Wrap}, Children: []core.Node{
 				field(s.t("前缀 Prefix"), textInput(q.prefix, "images/2024/"), 110),
 				field(s.t("后缀 Suffixes"), textInput(q.suffixes, "png,jpg,gif"), 110),
@@ -659,16 +668,18 @@ func (s *appState) searchForm(cx *core.Scope) core.Node {
 				field(s.t("起始时间"), textInput(q.start, "2024-01-01 00:00:00"), 200),
 				field(s.t("结束时间"), textInput(q.end, "2024-12-31 23:59:59"), 200),
 			}},
-			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 16, Wrap: core.Wrap}, Children: []core.Node{
-				ui.Checkbox{Text: s.t("包含目录"), Checked: func() bool { return q.includeDirs.Get() }, OnChange: func(v bool) { q.includeDirs.Set(v) }},
-				ui.Checkbox{Text: s.t("可读大小"), Checked: func() bool { return q.readable.Get() }, OnChange: func(v bool) { q.readable.Set(v) }},
-				ui.Checkbox{Text: s.t("导出含表头"), Checked: func() bool { return q.header.Get() }, OnChange: func(v bool) { q.header.Set(v) }},
-				core.View{Style: core.Style{Width: core.Pt(160)}, Children: []core.Node{ui.Select[string]{
-					Options:  []ui.Option[string]{{Value: "tab", Label: s.t("制表符分隔")}, {Value: "comma", Label: s.t("逗号分隔")}},
-					Value:    func() string { return q.sep.Get() },
-					OnChange: func(v string) { q.sep.Set(v) },
-				}}},
-			}},
+			core.Show{When: func() bool { return !q.collapsed.Get() }, Then: func(cx *core.Scope) core.Node {
+				return core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 16, Wrap: core.Wrap}, Children: []core.Node{
+					ui.Checkbox{Text: s.t("包含目录"), Checked: func() bool { return q.includeDirs.Get() }, OnChange: func(v bool) { q.includeDirs.Set(v) }},
+					ui.Checkbox{Text: s.t("可读大小"), Checked: func() bool { return q.readable.Get() }, OnChange: func(v bool) { q.readable.Set(v) }},
+					ui.Checkbox{Text: s.t("导出含表头"), Checked: func() bool { return q.header.Get() }, OnChange: func(v bool) { q.header.Set(v) }},
+					core.View{Style: core.Style{Width: core.Pt(160)}, Children: []core.Node{ui.Select[string]{
+						Options:  []ui.Option[string]{{Value: "tab", Label: s.t("制表符分隔")}, {Value: "comma", Label: s.t("逗号分隔")}},
+						Value:    func() string { return q.sep.Get() },
+						OnChange: func(v string) { q.sep.Set(v) },
+					}}},
+				}}
+			}, Else: func(*core.Scope) core.Node { return core.View{} }},
 			core.View{Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 10}, Children: []core.Node{
 				ui.Button{Text: s.t("开始搜索"), Icon: lucide.Search, Variant: ui.ButtonPrimary, OnPress: func() { s.runSearch() },
 					Busy: func() bool { return q.scanning.Get() }, BusyLabel: s.t("扫描中")},

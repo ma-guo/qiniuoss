@@ -30,6 +30,7 @@ type searchState struct {
 	readable    *core.Signal[bool]
 	header      *core.Signal[bool]
 	sep         *core.Signal[string]
+	collapsed   *core.Signal[bool]
 
 	results  *core.Signal[[]object]
 	scanning *core.Signal[bool]
@@ -56,6 +57,7 @@ func newSearchState(cx *core.Scope) *searchState {
 		readable:    core.NewSignal(cx, true),
 		header:      core.NewSignal(cx, true),
 		sep:         core.NewSignal(cx, "tab"),
+		collapsed:   core.NewSignal(cx, false),
 		results:     core.NewSignalFunc(cx, []object(nil), nil),
 		scanning:    core.NewSignal(cx, false),
 		scanned:     core.NewSignal(cx, 0),
