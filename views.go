@@ -239,7 +239,7 @@ func (s *appState) fileListHeader(cx *core.Scope) core.Node {
 		Children: []core.Node{
 			checkCell(ui.Checkbox{
 				Checked:       func() bool { return s.allVisibleSelected() },
-				Indeterminate: func() bool { return s.someVisibleSelected() },
+				Indeterminate: func() bool { return s.someVisibleSelected() && !s.allVisibleSelected() },
 				Label:         s.t("全选"),
 				OnChange: func(v bool) {
 					if v {
@@ -291,7 +291,7 @@ func (s *appState) fileRow(cx *core.Scope, o object) core.Node {
 		}},
 	}
 	return core.View{
-		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: colGap, Width: core.Pct(100), Cursor: core.CursorPointer},
+		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: colGap, Width: core.Pct(100), BoxSizing: core.BorderBox, Padding: core.Symmetric(8, listInset), Cursor: core.CursorPointer},
 		StyleFunc: func() core.Style {
 			c := ui.ColorsOf(cx)
 			switch {
@@ -563,7 +563,7 @@ func (s *appState) searchSelectionBar(cx *core.Scope) core.Node {
 		Children: []core.Node{
 			ui.Checkbox{
 				Checked:       func() bool { return q.allSelected() },
-				Indeterminate: func() bool { return q.someSelected() },
+				Indeterminate: func() bool { return q.someSelected() && !q.allSelected() },
 				Text:          s.t("全选"),
 				OnChange: func(v bool) {
 					if v {
@@ -650,9 +650,9 @@ func (s *appState) searchForm(cx *core.Scope) core.Node {
 		Children: []core.Node{
 			core.Text{Content: s.t("高级搜索（对齐 qshell listbucket2）"), Style: ui.TypeTitle, StyleFunc: ui.Colored(colors.Text)},
 			core.View{Style: core.Style{Direction: core.Row, Gap: 10, Wrap: core.Wrap}, Children: []core.Node{
-				field(s.t("前缀 Prefix"), textInput(q.prefix, "images/2024/"), 220),
-				field(s.t("后缀 Suffixes"), textInput(q.suffixes, "png,jpg,gif"), 220),
-				field(s.t("MIME 类型"), textInput(q.mimes, "image/*,text/*"), 220),
+				field(s.t("前缀 Prefix"), textInput(q.prefix, "images/2024/"), 110),
+				field(s.t("后缀 Suffixes"), textInput(q.suffixes, "png,jpg,gif"), 110),
+				field(s.t("MIME 类型"), textInput(q.mimes, "image/*,text/*"), 110),
 				field(s.t("存储类型"), typeMenu, 220),
 				field(s.t("最小大小"), textInput(q.minSize, "10K"), 120),
 				field(s.t("最大大小"), textInput(q.maxSize, "5M"), 120),
@@ -723,7 +723,7 @@ func (s *appState) searchRow(row *core.Scope, o object) core.Node {
 	size := displaySize(o.Size, q.readable.Get())
 	kind := objectKind(o)
 	return core.View{
-		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: colGap, Width: core.Pct(100), Cursor: core.CursorPointer},
+		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: colGap, Width: core.Pct(100), BoxSizing: core.BorderBox, Padding: core.Symmetric(8, listInset), Cursor: core.CursorPointer},
 		StyleFunc: func() core.Style {
 			c := ui.ColorsOf(row)
 			switch {
