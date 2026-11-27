@@ -433,6 +433,11 @@ func newState(cx *core.Scope) *appState {
 		s.langPref.Set(pref)
 		s.lang.Set(normalizeLang(pref))
 	}
+	// With no account configured, open the account dialog so the app is
+	// usable at once.
+	if len(s.accounts.GetUntracked()) == 0 {
+		s.openAccountDialog()
+	}
 	s.visible = core.NewMemoFunc(cx, s.computeVisible, nil)
 	s.sc.Post(func() { s.refreshBuckets() })
 	return s

@@ -95,31 +95,43 @@ func (s *appState) browseToolbar(cx *core.Scope) core.Node {
 	}
 }
 
+// selAction draws a selection action: a text button on wide screens, a
+// square icon button (with a tooltip/label) on compact ones.
+func (s *appState) selAction(compact bool, text string, icon func() *core.SVG, variant ui.ButtonVariant, danger bool, disabled func() bool, onPress func()) core.Node {
+	if compact {
+		var tint func() core.Color
+		if danger {
+			tint = ui.ColorsOf(s.sc).Danger
+		}
+		return ui.IconButton{Icon: icon, Label: text, Disabled: disabled, OnPress: onPress, Tint: tint}
+	}
+	return ui.Button{Text: text, Icon: icon, Variant: variant, Disabled: disabled, OnPress: onPress}
+}
+
 func (s *appState) selectionBar(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
+	compact := cx.Env().Window().Width < 640
 	none := func() bool { return len(s.activeKeys()) == 0 }
 	single := func() bool { keys := s.activeKeys(); return len(keys) == 1 && !strings.HasSuffix(keys[0], "/") }
 	return core.View{
 		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Wrap: core.Wrap, Padding: core.Symmetric(6, 12),
 			Background: ui.Alpha(colors.Accent(), 0.08), BorderWidth: 1, Borders: core.Edges{Bottom: 1}, BorderColor: colors.Border()},
 		Children: []core.Node{
-			ui.Button{Text: s.t("预览"), Icon: lucide.Search, Variant: ui.ButtonGhost, Disabled: func() bool { return !single() },
-				OnPress: func() {
-					if keys := s.activeKeys(); len(keys) == 1 && !strings.HasSuffix(keys[0], "/") {
-						s.previewObject(object{Key: keys[0]})
-					}
-				}},
-			ui.Button{Text: s.t("下载"), Icon: lucide.Download, Variant: ui.ButtonGhost, Disabled: none, OnPress: func() { s.downloadSelected() }},
-			ui.Button{Text: s.t("复制到"), Icon: lucide.Copy, Variant: ui.ButtonGhost, Disabled: none, OnPress: func() { s.showCopyMoveSelected(false) }},
-			ui.Button{Text: s.t("移动到"), Icon: lucide.Move, Variant: ui.ButtonGhost, Disabled: none, OnPress: func() { s.showCopyMoveSelected(true) }},
-			ui.Button{Text: s.t("复制链接"), Icon: lucide.Link, Variant: ui.ButtonGhost, Disabled: func() bool { return !single() },
-				OnPress: func() {
-					keys := s.activeKeys()
-					if len(keys) == 1 && !strings.HasSuffix(keys[0], "/") {
-						s.copyLink(object{Key: keys[0]})
-					}
-				}},
-			ui.Button{Text: s.t("删除"), Icon: lucide.Trash, Variant: ui.ButtonDanger, Disabled: none, OnPress: func() { s.requestDelete(s.activeKeys()) }},
+			s.selAction(compact, s.t("预览"), lucide.Search, ui.ButtonGhost, false, func() bool { return !single() }, func() {
+				if keys := s.activeKeys(); len(keys) == 1 && !strings.HasSuffix(keys[0], "/") {
+					s.previewObject(object{Key: keys[0]})
+				}
+			}),
+			s.selAction(compact, s.t("下载"), lucide.Download, ui.ButtonGhost, false, none, func() { s.downloadSelected() }),
+			s.selAction(compact, s.t("复制到"), lucide.Copy, ui.ButtonGhost, false, none, func() { s.showCopyMoveSelected(false) }),
+			s.selAction(compact, s.t("移动到"), lucide.Move, ui.ButtonGhost, false, none, func() { s.showCopyMoveSelected(true) }),
+			s.selAction(compact, s.t("复制链接"), lucide.Link, ui.ButtonGhost, false, func() bool { return !single() }, func() {
+				keys := s.activeKeys()
+				if len(keys) == 1 && !strings.HasSuffix(keys[0], "/") {
+					s.copyLink(object{Key: keys[0]})
+				}
+			}),
+			s.selAction(compact, s.t("删除"), lucide.Trash, ui.ButtonDanger, true, none, func() { s.requestDelete(s.activeKeys()) }),
 			ui.IconButton{Icon: lucide.X, Label: s.t("清除选择"), Disabled: none, OnPress: func() { s.clearSelected(); s.cursor.Set("") }},
 			core.View{Style: core.Style{FlexGrow: 1}},
 			core.Text{ContentFunc: func() string {
@@ -541,6 +553,7 @@ func (s *appState) searchView(cx *core.Scope) core.Node {
 // the advanced search.
 func (s *appState) searchSelectionBar(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
+	compact := cx.Env().Window().Width < 640
 	q := s.search
 	none := func() bool { return len(q.activeKeys()) == 0 }
 	single := func() bool { return len(q.activeKeys()) == 1 }
@@ -560,20 +573,20 @@ func (s *appState) searchSelectionBar(cx *core.Scope) core.Node {
 					}
 				},
 			},
-			ui.Button{Text: s.t("预览"), Icon: lucide.Search, Variant: ui.ButtonGhost, Disabled: func() bool { return !single() }, OnPress: func() {
+			s.selAction(compact, s.t("预览"), lucide.Search, ui.ButtonGhost, false, func() bool { return !single() }, func() {
 				if keys := q.activeKeys(); len(keys) == 1 {
 					s.previewObject(object{Key: keys[0]})
 				}
-			}},
-			ui.Button{Text: s.t("下载"), Icon: lucide.Download, Variant: ui.ButtonGhost, Disabled: none, OnPress: func() { s.downloadKeys(q.activeKeys()) }},
-			ui.Button{Text: s.t("复制到"), Icon: lucide.Copy, Variant: ui.ButtonGhost, Disabled: none, OnPress: func() { s.showCopyMoveKeys(q.activeKeys(), false) }},
-			ui.Button{Text: s.t("移动到"), Icon: lucide.Move, Variant: ui.ButtonGhost, Disabled: none, OnPress: func() { s.showCopyMoveKeys(q.activeKeys(), true) }},
-			ui.Button{Text: s.t("复制链接"), Icon: lucide.Link, Variant: ui.ButtonGhost, Disabled: func() bool { return !single() }, OnPress: func() {
+			}),
+			s.selAction(compact, s.t("下载"), lucide.Download, ui.ButtonGhost, false, none, func() { s.downloadKeys(q.activeKeys()) }),
+			s.selAction(compact, s.t("复制到"), lucide.Copy, ui.ButtonGhost, false, none, func() { s.showCopyMoveKeys(q.activeKeys(), false) }),
+			s.selAction(compact, s.t("移动到"), lucide.Move, ui.ButtonGhost, false, none, func() { s.showCopyMoveKeys(q.activeKeys(), true) }),
+			s.selAction(compact, s.t("复制链接"), lucide.Link, ui.ButtonGhost, false, func() bool { return !single() }, func() {
 				if keys := q.activeKeys(); len(keys) == 1 {
 					s.copyLink(object{Key: keys[0]})
 				}
-			}},
-			ui.Button{Text: s.t("删除"), Icon: lucide.Trash, Variant: ui.ButtonDanger, Disabled: none, OnPress: func() { s.requestDelete(q.activeKeys()) }},
+			}),
+			s.selAction(compact, s.t("删除"), lucide.Trash, ui.ButtonDanger, true, none, func() { s.requestDelete(q.activeKeys()) }),
 			ui.IconButton{Icon: lucide.X, Label: s.t("清除选择"), Disabled: none, OnPress: func() { q.clearSelected(); q.cursor.Set("") }},
 			core.View{Style: core.Style{FlexGrow: 1}},
 			core.Text{ContentFunc: func() string {

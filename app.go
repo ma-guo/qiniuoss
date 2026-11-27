@@ -28,7 +28,8 @@ func Root(cx *core.Scope) core.Node {
 		cx.SetTitle(s.t("七牛文件管理"))
 		colors := ui.ColorsOf(cx)
 		return core.View{
-			Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, Background: colors.Background()},
+			Style: core.Style{Direction: core.Row, FlexGrow: 1, FlexShrink: 1, Background: colors.Background(),
+				PaddingEnv: core.EnvAll(core.EnvSafeArea)},
 			Children: []core.Node{
 				s.sidebarSlot(cx, isNarrow),
 				core.View{
@@ -163,7 +164,7 @@ func (s *appState) header(cx *core.Scope, isNarrow func() bool) core.Node {
 				},
 			}},
 			ui.Menu{
-				Trigger:   ui.Button{Icon: lucide.Globe, Variant: ui.ButtonGhost, Label: s.t("语言")},
+				Trigger:   ui.Button{Icon: lucide.Languages, Variant: ui.ButtonGhost, Label: s.t("语言")},
 				Children:  langItems,
 				MaxHeight: 320,
 			},
