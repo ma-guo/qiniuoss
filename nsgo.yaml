@@ -1,0 +1,20 @@
+name: qiniuoss
+id: com.maguo.qiniuoss
+version: 1.0.1
+
+# 应用图标使用七牛 logo：macOS 用 assets/AppIcon.icns，其他平台用
+# assets/Icon.png（均为 1024 正方形）。
+icon:
+  png: assets/Icon.png
+
+dev:
+  # native: this machine's backend; web: the browser; ios: a connected iPhone; ios_simulator; android: a connected device or emulator.
+  target: native
+  # true, the default, rebuilds and restarts on save; false runs once and exits with the app.
+  hot_reload: true
+
+build:
+  output: dist
+  # true opens the output directory after building.
+  open: false
+  targets: [macos_arm64, windows_x64, ios_simulator, android_arm64, web]

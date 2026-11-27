@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+.env
+# Build outputs
+/com.maguo.qiniuoss
+/dist/
+/.nsgo/
+*.app
