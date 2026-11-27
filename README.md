@@ -2,8 +2,10 @@
 
 基于 [NSGo](https://nsgo.dev/zh/) 与 [qiniu/go-sdk](https://github.com/qiniu/go-sdk) 构建的七牛云对象存储（Kodo）桌面管理工具。
 
-- 应用名：七牛文件管理
-- Bundle ID：`com.maguo.qiniuoss`
+- 安装显示名：**七牛OSS**（通过 `locales/en.yaml` 的 `appName` 设置）
+- 窗口标题：七牛文件管理
+- 包名 / Bundle ID：`com.maguo.qiniuoss`
+- 产物文件名：`qiniuoss`（`nsgo.yaml` 的 `name`）
 - 支持平台：NSGo 可打包的全部平台（macOS / Windows / Linux / iOS / Android / Web / TUI 等）
 
 ---
@@ -103,8 +105,10 @@ Windows / Linux / iOS / Android / Web / TUI 等目标同理，`-target` 传入�
 本应用未做 Apple 公证（notarization），从 DMG 安装后首次打开可能提示“已损坏 / 无法验证开发者”。把应用拖入「应用程序」后，执行以下命令移除隔离属性即可：
 
 ```shell
-sudo xattr -r -d com.apple.quarantine /Applications/qiniuoss.app
+sudo xattr -r -d com.apple.quarantine /Applications/com.maguo.qiniuoss.app
 ```
+
+> 应用包名（Bundle ID）为 `com.maguo.qiniuoss`。若安装后的 `.app` 文件名实际为 `qiniuoss.app`（由 `nsgo.yaml` 的 `name` 决定），请把路径改为 `/Applications/qiniuoss.app`。
 
 
 ---

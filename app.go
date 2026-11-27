@@ -130,6 +130,8 @@ func (s *appState) bucketList(cx *core.Scope) core.Node {
 
 func (s *appState) header(cx *core.Scope, isNarrow func() bool) core.Node {
 	colors := ui.ColorsOf(cx)
+	w := cx.Env().Window().Width
+	compact := w < 640
 	langItems := []core.Node{ui.MenuItem{Text: s.t("跟随系统"), Checked: func() bool { return s.langPref.Get() == "" },
 		OnSelect: func() { s.setLangPref("") }}}
 	for _, l := range appLanguages {
@@ -137,23 +139,29 @@ func (s *appState) header(cx *core.Scope, isNarrow func() bool) core.Node {
 		langItems = append(langItems, ui.MenuItem{Text: l.Name, Checked: func() bool { return s.langPref.Get() == l.Tag },
 			OnSelect: func() { s.setLangPref(l.Tag) }})
 	}
+	pad := core.Symmetric(10, 16)
+	if compact {
+		pad = core.Symmetric(8, 10)
+	}
 	return core.View{
-		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 12,
-			Padding: core.Symmetric(10, 16), BorderWidth: 1, Borders: core.Edges{Bottom: 1}, BorderColor: colors.Border()},
+		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8,
+			Padding: pad, BorderWidth: 1, Borders: core.Edges{Bottom: 1}, BorderColor: colors.Border()},
 		Children: []core.Node{
 			core.Show{When: isNarrow, Then: func(cx *core.Scope) core.Node {
 				return ui.IconButton{Icon: lucide.List, Label: s.t("菜单"), OnPress: func() { s.showSidebar.Set(true) }}
 			}, Else: func(cx *core.Scope) core.Node { return core.View{} }},
-			ui.Tabs[string]{
-				Variant: ui.TabsSegmented,
-				Options: []ui.Option[string]{
-					{Value: "browse", Label: s.t("浏览")},
-					{Value: "search", Label: s.t("高级搜索")},
+			core.View{Style: core.Style{FlexGrow: 1, FlexShrink: 1, MinWidth: core.Pt(0)}, Children: []core.Node{
+				ui.Tabs[string]{
+					Variant: ui.TabsSegmented,
+					Equal:   compact,
+					Options: []ui.Option[string]{
+						{Value: "browse", Label: s.t("浏览")},
+						{Value: "search", Label: s.t("高级搜索")},
+					},
+					Value:    func() string { return s.tab.Get() },
+					OnChange: func(v string) { s.tab.Set(v) },
 				},
-				Value:    func() string { return s.tab.Get() },
-				OnChange: func(v string) { s.tab.Set(v) },
-			},
-			core.View{Style: core.Style{FlexGrow: 1}},
+			}},
 			ui.Menu{
 				Trigger:   ui.Button{Icon: lucide.Globe, Variant: ui.ButtonGhost, Label: s.t("语言")},
 				Children:  langItems,
@@ -161,7 +169,9 @@ func (s *appState) header(cx *core.Scope, isNarrow func() bool) core.Node {
 			},
 			ui.IconButton{Icon: lucide.Bug, Label: s.t("调试面板"), Selected: func() bool { return s.debugOn.Get() },
 				OnPress: func() { s.debugOn.Set(!s.debugOn.Get()) }},
-			core.Text{ContentFunc: func() string { return s.bucket.Get() }, Style: ui.TypeLabel, MaxLines: 1, StyleFunc: ui.Colored(colors.Muted)},
+			core.Show{When: func() bool { return !compact }, Then: func(cx *core.Scope) core.Node {
+				return core.Text{ContentFunc: func() string { return s.bucket.Get() }, Style: ui.TypeLabel, MaxLines: 1, StyleFunc: ui.Colored(colors.Muted)}
+			}, Else: func(cx *core.Scope) core.Node { return core.View{} }},
 		},
 	}
 }

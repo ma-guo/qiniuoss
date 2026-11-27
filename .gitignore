@@ -4,5 +4,6 @@
 # Build outputs
 /com.maguo.qiniuoss
 /dist/
+/dist-*/
 /.nsgo/
 *.app
