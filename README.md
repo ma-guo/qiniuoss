@@ -105,10 +105,12 @@ Windows / Linux / iOS / Android / Web / TUI 等目标同理，`-target` 传入�
 本应用未做 Apple 公证（notarization），从 DMG 安装后首次打开可能提示“已损坏 / 无法验证开发者”。把应用拖入「应用程序」后，执行以下命令移除隔离属性即可：
 
 ```shell
-sudo xattr -r -d com.apple.quarantine /Applications/com.maguo.qiniuoss.app
+# -d 后是扩展属性名（隔离属性固定为 com.apple.quarantine）
+# 路径是应用 .app 的实际文件名；本应用由 name: qiniuoss 生成 qiniuoss.app
+sudo xattr -r -d com.apple.quarantine /Applications/qiniuoss.app
 ```
 
-> 应用包名（Bundle ID）为 `com.maguo.qiniuoss`。若安装后的 `.app` 文件名实际为 `qiniuoss.app`（由 `nsgo.yaml` 的 `name` 决定），请把路径改为 `/Applications/qiniuoss.app`。
+> `com.maguo.qiniuoss` 是应用的 **Bundle ID**，不是扩展属性名，不能放在 `-d` 后面。若安装后的 `.app` 文件名为 `com.maguo.qiniuoss.app`，才把路径改为 `/Applications/com.maguo.qiniuoss.app`。
 
 
 ---

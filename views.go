@@ -42,32 +42,55 @@ func (s *appState) browseView(cx *core.Scope) core.Node {
 
 func (s *appState) browseToolbar(cx *core.Scope) core.Node {
 	colors := ui.ColorsOf(cx)
+	compact := cx.Env().Window().Width < 640
+	filterW := core.Points(220)
+	pathMax := core.Points(360)
+	if compact {
+		filterW = 130
+		pathMax = 150
+	}
+	path := core.Text{ContentFunc: func() string {
+		root := "/" + s.bucket.Get()
+		if p := s.prefix.Get(); p != "" {
+			return root + "/" + strings.TrimSuffix(p, "/")
+		}
+		return root
+	}, MaxLines: 1, EllipsizeMode: core.EllipsizeTail,
+		Style: ui.TypeLabel.Merge(core.Style{MaxWidth: core.Pt(pathMax), FlexShrink: 1, MinWidth: core.Pt(0)}), StyleFunc: ui.Colored(colors.Text)}
+
+	var newBtn, upBtn, domBtn core.Node
+	if compact {
+		newBtn = ui.IconButton{Icon: lucide.FolderPlus, Label: s.t("新建"), OnPress: func() { s.folderName.Set(""); s.showFolder.Set(true) }}
+		upBtn = ui.IconButton{Icon: lucide.Upload, Label: s.t("上传"), Tint: colors.Accent, OnPress: func() { s.beginUpload() }}
+		domBtn = ui.IconButton{Icon: lucide.Globe, Label: s.t("域名"), OnPress: func() { s.openDomains() }}
+	} else {
+		newBtn = ui.Button{Text: s.t("新建"), Icon: lucide.FolderPlus, Variant: ui.ButtonOutline, OnPress: func() { s.folderName.Set(""); s.showFolder.Set(true) }}
+		upBtn = ui.Button{Text: s.t("上传"), Icon: lucide.Upload, Variant: ui.ButtonPrimary, OnPress: func() { s.beginUpload() }}
+		domBtn = ui.Button{Text: s.t("域名"), Icon: lucide.Globe, Variant: ui.ButtonOutline, OnPress: func() { s.openDomains() }}
+	}
 	return core.View{
 		Style: core.Style{Direction: core.Row, AlignItems: core.AlignCenter, Gap: 8, Padding: core.Symmetric(8, 12),
 			Wrap: core.Wrap, BorderWidth: 1, Borders: core.Edges{Bottom: 1}, BorderColor: colors.Border()},
 		Children: []core.Node{
 			ui.IconButton{Icon: lucide.ArrowLeft, Label: s.t("上一级"), OnPress: func() { s.goUp() }, Disabled: func() bool { return s.prefix.Get() == "" }},
 			ui.IconButton{Icon: lucide.RefreshCw, Label: s.t("刷新"), OnPress: func() { s.loadList(false) }},
-			core.Text{ContentFunc: func() string {
-				root := "/" + s.bucket.Get()
-				if p := s.prefix.Get(); p != "" {
-					return root + "/" + strings.TrimSuffix(p, "/")
-				}
-				return root
-			}, Style: ui.TypeLabel.Merge(core.Style{MaxWidth: core.Pt(360)}), StyleFunc: ui.Colored(colors.Text)},
+			path,
 			core.View{Style: core.Style{FlexGrow: 1}},
-			core.View{Style: core.Style{Width: core.Pt(220)}, Children: []core.Node{ui.Input{
+			core.View{Style: core.Style{Width: core.Pt(filterW)}, Children: []core.Node{ui.Input{
 				Value:       func() string { return s.filter.Get() },
 				OnChange:    func(v string) { s.filter.Set(v) },
 				Placeholder: s.t("过滤当前目录…"),
 			}}},
-			ui.Button{Text: s.t("新建"), Icon: lucide.FolderPlus, Variant: ui.ButtonOutline, OnPress: func() { s.folderName.Set(""); s.showFolder.Set(true) }},
-			ui.Button{Text: s.t("上传"), Icon: lucide.Upload, Variant: ui.ButtonPrimary, OnPress: func() { s.beginUpload() }},
+			newBtn,
+			upBtn,
 			core.Show{When: func() bool { return len(s.uploads.Get()) > 0 }, Then: func(cx *core.Scope) core.Node {
+				if compact {
+					return ui.IconButton{Icon: lucide.Upload, Label: s.tf("上传列表 (%d)", s.activeUploads()), OnPress: func() { s.uploadPanel.Set(true) }}
+				}
 				return ui.Button{TextFunc: func() string { return s.tf("上传列表 (%d)", s.activeUploads()) },
 					Icon: lucide.Upload, Variant: ui.ButtonOutline, OnPress: func() { s.uploadPanel.Set(true) }}
 			}, Else: func(*core.Scope) core.Node { return core.View{} }},
-			ui.Button{Text: s.t("域名"), Icon: lucide.Globe, Variant: ui.ButtonOutline, OnPress: func() { s.openDomains() }},
+			domBtn,
 		},
 	}
 }
